@@ -86,7 +86,9 @@ def send_text(to: str, text: str) -> requests.Response:
         "text": {"preview_url": False, "body": text},
     }
     print(url, payload)
-    return requests.post(url, headers=HEADERS, json=payload, timeout=20)
+    resp = requests.post(url, headers=HEADERS, json=payload, timeout=20)
+    print(resp.json())
+    return resp
 
 
 def send_buttons(to: str, body: str, buttons: list[dict]) -> requests.Response:
