@@ -37,6 +37,7 @@ from typing import Any, Dict, Optional
 
 import requests
 from dotenv import load_dotenv
+from app.advice import get_advice
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import PlainTextResponse, JSONResponse
 
@@ -123,7 +124,9 @@ def send_list(to: str, body: str, sections: list[dict]) -> requests.Response:
             },
         },
     }
-    return requests.post(url, headers=HEADERS, json=payload, timeout=20)
+    res = requests.post(url, headers=HEADERS, json=payload, timeout=20)
+    print(res.json())
+    return res
 
 
 # -------------------------
@@ -233,7 +236,7 @@ async def handle_message(from_id: str, text: Optional[str], interactive: Optiona
                 risk = {"RISK_LOW": "conservative", "RISK_MED": "balanced", "RISK_HIGH": "aggressive"}[reply_id]
                 state["risk"] = risk
                 set_stage(from_id, "show_opportunities")
-                send_text(from_id, f"Great. Logged your risk preference as *{risk}*.\n\n{DISCLAIMER}")
+                send_text(from_id, f"Great. Logged your risk preference as *{risk}*.")
                 send_list(
                     from_id,
                     "Here are educational investment *categories* you can research further. Select one to learn the basics:",
@@ -261,7 +264,7 @@ async def handle_message(from_id: str, text: Optional[str], interactive: Optiona
                         "• Read official fund/issuer docs and fee schedules.\n"
                         "• Compare risks, costs, and liquidity.\n"
                         "• Consider diversification and time horizon.\n\n"
-                        f"{DISCLAIMER}"
+                        f""
                     ),
                 )
                 return
@@ -276,27 +279,26 @@ async def handle_message(from_id: str, text: Optional[str], interactive: Optiona
         send_text(
             from_id,
             (
-                "👋 Welcome! I share *general educational info* about investing and risk.\n\n"
-                f"{DISCLAIMER}\n\n"
-                "First, what's your typical risk tolerance?"
+                "👋 Welcome! I will get to know you and share *personalised educational info* about finance and investment.\n\n"
+                "Ask me what you want to know about finance and investments"
             ),
         )
-        send_buttons(
-            from_id,
-            "Choose one:",
-            [
-                {"type": "reply", "reply": {"id": "RISK_LOW", "title": "Conservative"}},
-                {"type": "reply", "reply": {"id": "RISK_MED", "title": "Balanced"}},
-                {"type": "reply", "reply": {"id": "RISK_HIGH", "title": "Aggressive"}},
-            ],
-        )
+        # send_buttons(
+        #     from_id,
+        #     "Choose one:",
+        #     [
+        #         {"type": "reply", "reply": {"id": "RISK_LOW", "title": "Conservative"}},
+        #         {"type": "reply", "reply": {"id": "RISK_MED", "title": "Balanced"}},
+        #         {"type": "reply", "reply": {"id": "RISK_HIGH", "title": "Aggressive"}},
+        #     ],
+        # )
         return
 
     # User directly types risk level
     if msg in {"conservative", "balanced", "aggressive"}:
         STATE[from_id]["risk"] = msg
         set_stage(from_id, "show_opportunities")
-        send_text(from_id, f"Got it — *{msg}*.\n\n{DISCLAIMER}")
+        send_text(from_id, f"Got it — *{msg}*.")
         send_list(
             from_id,
             "Here are educational categories to explore:",
@@ -307,10 +309,7 @@ async def handle_message(from_id: str, text: Optional[str], interactive: Optiona
     # Fallback/help
     send_text(
         from_id,
-        (
-            "I didn't catch that. Type *start* to begin, or say *hello*.\n\n"
-            "You can also type one of: *conservative*, *balanced*, *aggressive*."
-        ),
+        get_advice(msg),
     )
 
 
