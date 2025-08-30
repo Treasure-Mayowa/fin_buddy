@@ -305,11 +305,13 @@ async def handle_message(from_id: str, text: Optional[str], interactive: Optiona
             opportunities_sections(msg),
         )
         return
-
+    schedule_prompt = "Click the attahced link if you want to schedule a consultation with one of our experts.\n\nhttps://calendar.app.google/WmSWjb33sXf8taLe6"
+    schedule_ask = "Do you want to schedule a consultation with one of our experts?"
     # Fallback/help
     send_text(
         from_id,
         get_advice(msg),
+        
     )
 
 
