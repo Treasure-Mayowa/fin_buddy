@@ -1,10 +1,13 @@
-import re, requests
+import os, re, requests
+from dotenv import load_dotenv
+
+load_dotenv()
 
 def get_advice(text):
 
     url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key="
 
-    key = "AIzaSyA5fnx2GOsecEFsQFHJJVhyQdaumNHYcqE"
+    key = os.getenv("GEMINI_API_KEY")
 
     headers = {
         "Content-Type": "application/json"
