@@ -315,7 +315,7 @@ async def handle_message(from_id: str, text: Optional[str], interactive: Optiona
         )
         return
     # Fallback/help
-    schedule_ask = "\n\nType and send \"schedule\" if you want to book a consultation with one of our experts?"
+    schedule_ask = "\n\n\nType and send \"schedule\" if you want to book a consultation with one of our experts"
     send_text(
         from_id,
         get_advice(msg) + schedule_ask,
