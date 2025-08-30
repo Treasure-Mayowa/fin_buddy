@@ -50,6 +50,7 @@ META_TOKEN = os.getenv("META_TOKEN", "")
 PHONE_NUMBER_ID = os.getenv("WHATSAPP_PHONE_NUMBER_ID", "")
 VERIFY_TOKEN = os.getenv("VERIFY_TOKEN", "")
 BASE_URL = os.getenv("BASE_URL", "https://graph.facebook.com/v22.0")
+SCHEDULE_PROMPT = "Click the attahced link to schedule a consultation with one of our experts.\n\nhttps://calendar.app.google/WmSWjb33sXf8taLe6"
 
 if not META_TOKEN:
     logging.warning("META_TOKEN is not set. Remember to configure environment variables.")
@@ -294,6 +295,14 @@ async def handle_message(from_id: str, text: Optional[str], interactive: Optiona
         # )
         return
 
+    # scheduling
+    if msg == "schedule":
+        send_text(
+            from_id,
+            SCHEDULE_PROMPT,
+        )
+        return
+
     # User directly types risk level
     if msg in {"conservative", "balanced", "aggressive"}:
         STATE[from_id]["risk"] = msg
@@ -305,13 +314,11 @@ async def handle_message(from_id: str, text: Optional[str], interactive: Optiona
             opportunities_sections(msg),
         )
         return
-    schedule_prompt = "Click the attahced link if you want to schedule a consultation with one of our experts.\n\nhttps://calendar.app.google/WmSWjb33sXf8taLe6"
-    schedule_ask = "Do you want to schedule a consultation with one of our experts?"
     # Fallback/help
+    schedule_ask = "\n\nType and send \"schedule\" if you want to book a consultation with one of our experts?"
     send_text(
         from_id,
-        get_advice(msg),
-        
+        get_advice(msg) + schedule_ask,
     )
 
 
