@@ -65,12 +65,6 @@ app = FastAPI(title="FinBuddy")
 # In-memory conversation state: { user_id: {"stage": str, "risk": Optional[str]} }
 STATE: Dict[str, Dict[str, Any]] = {}
 
-DISCLAIMER = (
-    "I am not a financial advisor. I provide general, educational information only. "
-    "Nothing here is investment, legal, or tax advice. Always do your own research and, if needed, "
-    "consult a licensed professional before making decisions."
-)
-
 # -------------------------
 # WhatsApp Send Helpers
 # -------------------------
