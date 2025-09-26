@@ -4,7 +4,7 @@ from .core.session_manager import SessionManager
 
 import os
 import logging
-import datetime
+import datetime, time
 from typing import Any, Optional
 
 import requests
@@ -14,8 +14,6 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import PlainTextResponse, JSONResponse, Response
 
 import redis
-from contextlib import asynccontextmanager
-from prometheus_fastapi_instrumentator import Instrumentator
 from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
 
 
@@ -74,6 +72,7 @@ redis_connections = Gauge('redis_connections_active', 'Active Redis connections'
 app = FastAPI(title="FinBuddy")
 
 rate_limiter = RateLimiter(redis_client)
+redis_connections.inc()
 session_manager = SessionManager(redis_client, active_sessions=active_sessions)
 
 
@@ -119,63 +118,62 @@ def normalize_message(text: str) -> str:
     text = ' '.join(text.split())
     return text[:500]
 
-@message_processing_time
 async def handle_message(from_id: str, text: Optional[str]) -> Any:
-    try:
-        # Log message for monitoring
-        session_manager.add_message(from_id, {
-            "from": from_id,
-            "text": text,
-            "type": "incoming"
-        })
-        
-        session = session_manager.get_session(from_id)
-        msg = normalize_message(text or "")
-        
-        
-        # Handle text messages
-        message_counter.labels(message_type='text', status='processed').inc()
+    with message_processing_time.time():
+        try:
+            # Log message for monitoring
+            session_manager.add_message(from_id, {
+                "from": from_id,
+                "text": text,
+                "type": "incoming"
+            })
+            
+            session = session_manager.get_session(from_id)
+            msg = normalize_message(text or "")
+            
+            
+            # Handle text messages
+            message_counter.labels(message_type='text', status='processed').inc()
 
-        if msg in GREETINGS:
-            session_manager.set_stage(from_id, "active")
+            if msg in GREETINGS:
+                session_manager.set_stage(from_id, "active")
+                send_text(
+                from_id,
+                "👋 Welcome! I am FinBuddy! I will get to know you and share *personalised educational info* about finance and investment.\n\n"
+                "Ask me what you want to know about finance and investments"
+                "Or type 'schedule' to book a consultation with our experts."         
+                )
+                return
+
+            if msg == "schedule":
+                send_text(
+                from_id,
+                SCHEDULE_PROMPT,
+                )
+                return 
+        
+            # Fallback/help
+            schedule_ask = "\n\n\nType and send \"schedule\" if you want to book a consultation with one of our experts"
+            advice = get_advice(msg)
             send_text(
-            from_id,
-            "👋 Welcome! I am FinBuddy! I will get to know you and share *personalised educational info* about finance and investment.\n\n"
-            "Ask me what you want to know about finance and investments"
-            "Or type 'schedule' to book a consultation with our experts."         
+                from_id,
+                advice + schedule_ask,
             )
+
+            # Log outgoing message
+            session_manager.add_message(from_id, {
+                "to": from_id,
+                "text": advice,
+                "type": "outgoing"
+            })
             return
-
-        if msg == "schedule":
-            send_text(
-            from_id,
-            SCHEDULE_PROMPT,
-            )
-            return 
-    
-        # Fallback/help
-        schedule_ask = "\n\n\nType and send \"schedule\" if you want to book a consultation with one of our experts"
-        advice = get_advice(msg)
-        send_text(
-            from_id,
-            advice + schedule_ask,
-        )
-
-        # Log outgoing message
-        session_manager.add_message(from_id, {
-            "to": from_id,
-            "text": advice,
-            "type": "outgoing"
-        })
-        return
-    except Exception as e:
-        logging.error(f"Error handling message from {from_id}: {e}")
-        message_counter.labels(message_type='error', status='failed').inc()
-        # Send fallback message
-        send_text(from_id, 
-            "Sorry, I encountered an issue processing your message. Please try again"
-        )
-        
+        except Exception as e:
+            logging.error(f"Error handling message from {from_id}: {e}")
+            message_counter.labels(message_type='error', status='failed').inc()
+            # Send fallback message
+            send_text(from_id, 
+                "Sorry, I encountered an issue processing your message. Please try again"
+            )    
 
 async def check_rate_limit(request: Request):
     # Extract user ID from request 
@@ -186,6 +184,7 @@ async def check_rate_limit(request: Request):
             status_code=429, 
             detail="Rate limit exceeded. Please try again later."
         )
+    
 # -------------------------
 # Webhook Endpoints
 # -------------------------
@@ -254,7 +253,7 @@ async def health_check():
     
     return JSONResponse({
         "status": "healthy" if redis_status == "healthy" else "degraded",
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.datetime.now().isoformat(),
         "services": {
             "redis": redis_status,
         }
